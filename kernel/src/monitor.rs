@@ -58,6 +58,10 @@ impl RgbColor {
     pub fn into_array(&self) -> [u8; 4] {
         [self.r, self.g, self.b, 0]
     }
+
+    pub fn into_reversed_array(&self) -> [u8; 4] {
+        [self.b, self.g, self.r, 0]
+    }
 }
 
 impl core::ops::Mul<f32> for RgbColor {
@@ -156,7 +160,18 @@ impl FrameBufferWriter {
 
     fn write_pixel(&mut self, x: usize, y: usize, color: &RgbColor) {
         let pixel_offset = y * self.info.stride + x;
-        let color_bytes = color.into_array();
+        let color_bytes = match self.info.pixel_format {
+            bootloader_api::info::PixelFormat::Rgb => color.into_array(),
+            bootloader_api::info::PixelFormat::Bgr => color.into_reversed_array(),
+            bootloader_api::info::PixelFormat::U8 => {
+                if color > &RgbColor::new(200, 200, 200) {
+                    [125, 125, 125, 0]
+                } else {
+                    [0; 4]
+                }
+            }
+            _ => panic!("invalid pixel format"),
+        };
         let bytes_per_pixel = self.info.bytes_per_pixel;
         let byte_offset = pixel_offset * bytes_per_pixel;
         self.framebuffer[byte_offset..(byte_offset + bytes_per_pixel)]
