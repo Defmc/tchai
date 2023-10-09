@@ -133,6 +133,7 @@ impl FrameBufferWriter {
         match c {
             '\n' => self.newline(),
             '\r' => self.carriage_return(),
+            '\t' => (0..4).for_each(|_| self.write_char(' ')),
             c => {
                 let new_xpos = self.x_pos + font_constants::CHAR_RASTER_WIDTH;
                 if new_xpos >= self.width() {
