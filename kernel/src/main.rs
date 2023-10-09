@@ -16,14 +16,21 @@ bootloader_api::entry_point!(kernel_main);
 
 #[no_mangle]
 fn kernel_main(info: &'static mut bootloader_api::BootInfo) -> ! {
+    kernel::init();
     kernel::setup_monitor(info.framebuffer.as_mut().unwrap());
 
     #[cfg(debug_assertions)]
     kernel::test_runner::run_tests();
 
+    // page fault
+    // unsafe {
+    //     *(0xdeadbeef as *mut u8) = 42;
+    // };
+
     print!("yaay, welcome to ");
     println!(RgbColor::new(0, 255, 0) => "tchaiOS");
 
     println!("(root) [/]: ");
-    panic!("to be continued...");
+
+    loop {}
 }

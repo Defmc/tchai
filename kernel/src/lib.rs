@@ -1,21 +1,34 @@
 #![no_std]
 #![no_main]
+#![feature(abi_x86_interrupt)]
+
+use core::fmt;
 
 use bootloader_api::info::FrameBuffer;
 use monitor::{FrameBufferWriter, RgbColor};
 
+pub mod gdt;
+pub mod ints;
 pub mod monitor;
 #[cfg(debug_assertions)]
 pub mod test_runner;
 
-pub static mut MONITOR_OUT: Option<FrameBufferWriter> = None;
+use spin::mutex::Mutex;
+pub static mut MONITOR_OUT: Mutex<Option<FrameBufferWriter>> = Mutex::new(None);
+
+pub fn init() {
+    ints::init_idt();
+    gdt::init_gdt();
+    unsafe { ints::PICS.lock().initialize() };
+    x86_64::instructions::interrupts::enable();
+}
 
 pub fn setup_monitor(fb: &'static mut FrameBuffer) {
     let fb_info = fb.info();
     let fb_buffer = fb.buffer_mut();
     let monitor = monitor::FrameBufferWriter::new(fb_buffer, fb_info);
     unsafe {
-        MONITOR_OUT = Some(monitor);
+        MONITOR_OUT = Some(monitor).into();
     }
 }
 
@@ -66,25 +79,32 @@ macro_rules! erro {
 #[macro_export]
 macro_rules! print {
     ($($args:expr),*) => {{
-        use core::fmt::Write;
-        unsafe { write!($crate::MONITOR_OUT.as_mut().unwrap(), $($args),*).unwrap() }
+        $crate::println!($crate::monitor::RgbColor::new(255, 255, 255) => $($args),*);
     }};
     ($color:expr => $($args:expr),*) => {{
-        let formatted = format_args!($($args),*);
-        unsafe { $crate::MONITOR_OUT.as_mut().unwrap().write_colored_str(formatted.as_str().unwrap(), &$color) }
+        $crate::internal_colored_print(format_args!($($args),*), &$color);
     }}
 }
 
 #[macro_export]
 macro_rules! println {
     ($($args:expr),*) => {{
-        use core::fmt::Write;
-        unsafe { writeln!($crate::MONITOR_OUT.as_mut().unwrap(), $($args),*).unwrap() }
+        $crate::println!($crate::monitor::RgbColor::new(255, 255, 255) => $($args),*);
     }};
     ($color:expr => $($args:expr),*) => {{
-        use core::fmt::Write;
-        let formatted = format_args!($($args),*);
-        unsafe { $crate::MONITOR_OUT.as_mut().unwrap().write_colored_str(formatted.as_str().unwrap(), &$color) }
-        println!("");
+        $crate::internal_colored_print(format_args!($($args),*), &$color);
+        $crate::internal_colored_print(format_args!("\n"), &$color);
     }}
+}
+
+pub fn internal_colored_print(fmt: fmt::Arguments, color: &RgbColor) {
+    use x86_64::instructions::interrupts;
+
+    interrupts::without_interrupts(|| unsafe {
+        crate::MONITOR_OUT
+            .lock()
+            .as_mut()
+            .unwrap()
+            .write_colored_str(fmt.as_str().unwrap(), color);
+    })
 }
