@@ -14,7 +14,7 @@ pub mod monitor;
 pub mod test_runner;
 
 use spin::mutex::Mutex;
-pub static mut MONITOR_OUT: Option<FrameBufferWriter> = None;
+pub static mut MONITOR_OUT: Mutex<Option<FrameBufferWriter>> = Mutex::new(None);
 
 pub fn init() {
     ints::init_idt();
@@ -98,18 +98,13 @@ macro_rules! println {
 }
 
 pub fn internal_colored_print(fmt: fmt::Arguments, color: RgbColor) {
-    // use x86_64::instructions::interrupts;
+    use x86_64::instructions::interrupts;
 
-    // interrupts::without_interrupts(||
-    // unsafe {
-    //     crate::MONITOR_OUT
-    //         .lock()
-    //         .as_mut()
-    //         .unwrap()
-    //         .write_colored_str(fmt.as_str().unwrap(), color);
-    // })
-    use core::fmt::Write;
-    let out = unsafe { crate::MONITOR_OUT.as_mut().unwrap() };
-    out.color = color;
-    out.write_fmt(fmt).unwrap();
+    interrupts::without_interrupts(|| {
+        use core::fmt::Write;
+        let mut lock = unsafe { crate::MONITOR_OUT.lock() };
+        let out = lock.as_mut().unwrap();
+        out.color = color;
+        out.write_fmt(fmt).unwrap();
+    })
 }

@@ -36,7 +36,7 @@ lazy_static::lazy_static! {
         unsafe {
             idt.double_fault.set_handler_fn(double_fault_h).set_stack_index(gdt::DOUBLE_FAULT_IST_INDEX);
         }
-        idt[IntIndex::Timer.into()].set_handler_fn(timer_h);
+       idt[IntIndex::Timer.into()].set_handler_fn(timer_h);
         idt
     };
 }
@@ -58,6 +58,6 @@ extern "x86-interrupt" fn double_fault_h(stack_frame: InterruptStackFrame, _erro
 }
 
 extern "x86-interrupt" fn timer_h(_stack_frame: InterruptStackFrame) {
-    unsafe { TIMER_TICKS += 1 };
+    //    unsafe { TIMER_TICKS += 1 };
     unsafe { PICS.lock().notify_end_of_interrupt(IntIndex::Timer.into()) }
 }

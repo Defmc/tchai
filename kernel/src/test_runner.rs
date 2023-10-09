@@ -38,13 +38,13 @@ pub fn breakpoint_exception() {
 }
 
 pub fn kernel_stackoverflow_exception() {
-    #[allow(unconditional_recursion)]
-    fn overflow() {
-        overflow();
-        let x = 0;
-        unsafe {
-            core::ptr::write_volatile(x as *mut u8, 1);
-        }
-    }
-    overflow()
+    // #[allow(unconditional_recursion)]
+    // fn overflow() {
+    //     overflow();
+    //     let x = 0;
+    //     unsafe {
+    //         core::ptr::write_volatile(x as *mut u8, 1);
+    //     }
+    // }
+    // overflow()
 }

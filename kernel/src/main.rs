@@ -16,8 +16,8 @@ bootloader_api::entry_point!(kernel_main);
 
 #[no_mangle]
 fn kernel_main(info: &'static mut bootloader_api::BootInfo) -> ! {
-    kernel::init();
     kernel::setup_monitor(info.framebuffer.as_mut().unwrap());
+    kernel::init();
 
     #[cfg(debug_assertions)]
     kernel::test_runner::run_tests();
