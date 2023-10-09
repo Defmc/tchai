@@ -14,7 +14,7 @@ pub mod monitor;
 pub mod test_runner;
 
 use spin::mutex::Mutex;
-pub static mut MONITOR_OUT: Mutex<Option<FrameBufferWriter>> = Mutex::new(None);
+pub static mut MONITOR_OUT: Option<FrameBufferWriter> = None;
 
 pub fn init() {
     ints::init_idt();
@@ -79,10 +79,10 @@ macro_rules! erro {
 #[macro_export]
 macro_rules! print {
     ($($args:expr),*) => {{
-        $crate::println!($crate::monitor::RgbColor::new(255, 255, 255) => $($args),*);
+        $crate::print!($crate::monitor::RgbColor::new(255, 255, 255) => $($args),*);
     }};
     ($color:expr => $($args:expr),*) => {{
-        $crate::internal_colored_print(format_args!($($args),*), &$color);
+        $crate::internal_colored_print(format_args!($($args),*), $color);
     }}
 }
 
@@ -92,19 +92,24 @@ macro_rules! println {
         $crate::println!($crate::monitor::RgbColor::new(255, 255, 255) => $($args),*);
     }};
     ($color:expr => $($args:expr),*) => {{
-        $crate::internal_colored_print(format_args!($($args),*), &$color);
-        $crate::internal_colored_print(format_args!("\n"), &$color);
+        $crate::print!($color => $($args),*);
+        $crate::print!("\n");
     }}
 }
 
-pub fn internal_colored_print(fmt: fmt::Arguments, color: &RgbColor) {
-    use x86_64::instructions::interrupts;
+pub fn internal_colored_print(fmt: fmt::Arguments, color: RgbColor) {
+    // use x86_64::instructions::interrupts;
 
-    interrupts::without_interrupts(|| unsafe {
-        crate::MONITOR_OUT
-            .lock()
-            .as_mut()
-            .unwrap()
-            .write_colored_str(fmt.as_str().unwrap(), color);
-    })
+    // interrupts::without_interrupts(||
+    // unsafe {
+    //     crate::MONITOR_OUT
+    //         .lock()
+    //         .as_mut()
+    //         .unwrap()
+    //         .write_colored_str(fmt.as_str().unwrap(), color);
+    // })
+    use core::fmt::Write;
+    let out = unsafe { crate::MONITOR_OUT.as_mut().unwrap() };
+    out.color = color;
+    out.write_fmt(fmt).unwrap();
 }

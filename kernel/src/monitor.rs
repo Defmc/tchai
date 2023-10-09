@@ -76,10 +76,11 @@ impl core::ops::Mul<f32> for RgbColor {
 
 /// Allows logging text to a pixel-based framebuffer.
 pub struct FrameBufferWriter {
-    framebuffer: &'static mut [u8],
-    info: FrameBufferInfo,
-    x_pos: usize,
-    y_pos: usize,
+    pub framebuffer: &'static mut [u8],
+    pub info: FrameBufferInfo,
+    pub color: RgbColor,
+    pub x_pos: usize,
+    pub y_pos: usize,
 }
 
 impl FrameBufferWriter {
@@ -88,6 +89,7 @@ impl FrameBufferWriter {
         let mut logger = Self {
             framebuffer,
             info,
+            color: RgbColor::new(255, 255, 255),
             x_pos: 0,
             y_pos: 0,
         };
@@ -119,15 +121,15 @@ impl FrameBufferWriter {
         self.info.height
     }
 
-    pub fn write_colored_str(&mut self, s: impl AsRef<str>, color: &RgbColor) {
+    pub fn write_colored_str(&mut self, s: impl AsRef<str>) {
         for c in s.as_ref().chars() {
-            self.write_char(c, &color);
+            self.write_char(c);
         }
     }
 
     /// Writes a single char to the framebuffer. Takes care of special control characters, such as
     /// newlines and carriage returns.
-    fn write_char(&mut self, c: char, color: &RgbColor) {
+    fn write_char(&mut self, c: char) {
         match c {
             '\n' => self.newline(),
             '\r' => self.carriage_return(),
@@ -141,30 +143,30 @@ impl FrameBufferWriter {
                 if new_ypos >= self.height() {
                     self.clear();
                 }
-                self.write_rendered_char(get_char_raster(c), color);
+                self.write_rendered_char(get_char_raster(c));
             }
         }
     }
 
     /// Prints a rendered char into the framebuffer.
     /// Updates `self.x_pos`.
-    fn write_rendered_char(&mut self, rendered_char: RasterizedChar, color: &RgbColor) {
+    fn write_rendered_char(&mut self, rendered_char: RasterizedChar) {
         for (y, row) in rendered_char.raster().iter().enumerate() {
             for (x, byte) in row.iter().enumerate() {
                 let intensity = *byte as f32 / 255.0;
-                self.write_pixel(self.x_pos + x, self.y_pos + y, &(*color * intensity));
+                self.write_pixel(self.x_pos + x, self.y_pos + y, self.color * intensity);
             }
         }
         self.x_pos += rendered_char.width() + LETTER_SPACING;
     }
 
-    fn write_pixel(&mut self, x: usize, y: usize, color: &RgbColor) {
+    fn write_pixel(&mut self, x: usize, y: usize, color: RgbColor) {
         let pixel_offset = y * self.info.stride + x;
         let color_bytes = match self.info.pixel_format {
             bootloader_api::info::PixelFormat::Rgb => color.into_array(),
             bootloader_api::info::PixelFormat::Bgr => color.into_reversed_array(),
             bootloader_api::info::PixelFormat::U8 => {
-                if color > &RgbColor::new(200, 200, 200) {
+                if self.color > RgbColor::new(200, 200, 200) {
                     [125, 125, 125, 0]
                 } else {
                     [0; 4]
@@ -186,7 +188,7 @@ unsafe impl Sync for FrameBufferWriter {}
 impl fmt::Write for FrameBufferWriter {
     fn write_str(&mut self, s: &str) -> fmt::Result {
         for c in s.chars() {
-            self.write_char(c, &RgbColor::new(255, 255, 255));
+            self.write_char(c);
         }
         Ok(())
     }
