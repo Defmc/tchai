@@ -14,13 +14,17 @@ pub mod monitor;
 pub mod test_runner;
 
 use spin::mutex::Mutex;
+use uart_16550::SerialPort;
 pub static mut MONITOR_OUT: Mutex<Option<FrameBufferWriter>> = Mutex::new(None);
+pub static mut SERIAL_OUT: Mutex<Option<SerialPort>> = Mutex::new(None);
+
+pub const SERIAL_IO_PORT: u16 = 0x3F8;
 
 pub fn init() {
     ints::init_idt();
     gdt::init_gdt();
     unsafe { ints::PICS.lock().initialize() };
-    x86_64::instructions::interrupts::enable();
+    //x86_64::instructions::interrupts::enable();
 }
 
 pub fn setup_monitor(fb: &'static mut FrameBuffer) {
@@ -29,6 +33,11 @@ pub fn setup_monitor(fb: &'static mut FrameBuffer) {
     let monitor = monitor::FrameBufferWriter::new(fb_buffer, fb_info);
     unsafe {
         MONITOR_OUT = Some(monitor).into();
+    }
+    unsafe {
+        let mut sp = SerialPort::new(SERIAL_IO_PORT);
+        sp.init();
+        SERIAL_OUT = Some(sp).into();
     }
 }
 
@@ -100,11 +109,15 @@ macro_rules! println {
 pub fn internal_colored_print(fmt: fmt::Arguments, color: RgbColor) {
     use x86_64::instructions::interrupts;
 
-    interrupts::without_interrupts(|| {
-        use core::fmt::Write;
-        let mut lock = unsafe { crate::MONITOR_OUT.lock() };
-        let out = lock.as_mut().unwrap();
-        out.color = color;
-        out.write_fmt(fmt).unwrap();
-    })
+    //    interrupts::without_interrupts(|| {
+    use core::fmt::Write;
+    let mut serial_lock = unsafe { crate::SERIAL_OUT.lock() };
+    let serial = serial_lock.as_mut().unwrap();
+    serial.write_fmt(fmt).unwrap();
+
+    let mut monitor_lock = unsafe { crate::MONITOR_OUT.lock() };
+    let monitor = monitor_lock.as_mut().unwrap();
+    monitor.color = color;
+    monitor.write_fmt(fmt).unwrap();
+    //    })
 }
