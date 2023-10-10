@@ -1,7 +1,7 @@
 use crate::{erro, gdt, info, okay, print, warn};
 use pic8259::ChainedPics;
 use spin;
-use x86_64::structures::idt::{InterruptDescriptorTable, InterruptStackFrame};
+use x86_64::structures::idt::{InterruptDescriptorTable, InterruptStackFrame, PageFaultErrorCode};
 
 pub const PIC_1_OFFSET: u8 = 32;
 pub const PIC_2_OFFSET: u8 = PIC_1_OFFSET + 8;
@@ -37,6 +37,7 @@ lazy_static::lazy_static! {
         unsafe {
             idt.double_fault.set_handler_fn(double_fault_h).set_stack_index(gdt::DOUBLE_FAULT_IST_INDEX);
         }
+        idt.page_fault.set_handler_fn(page_fault_h);
         idt[IntIndex::Timer.into()].set_handler_fn(timer_h);
         idt[IntIndex::Keyboard.into()].set_handler_fn(keyboard_h);
         idt
@@ -69,6 +70,18 @@ extern "x86-interrupt" fn double_fault_h(stack_frame: InterruptStackFrame, error
     info!("\terror code: {error_code}");
     info!("\tstack frame: {stack_frame:#?}");
     panic!("double fault exception");
+}
+
+extern "x86-interrupt" fn page_fault_h(
+    stack_frame: InterruptStackFrame,
+    error_code: PageFaultErrorCode,
+) {
+    use x86_64::registers::control::Cr2;
+    warn!("page fault exception");
+    info!("error code: {error_code:?}");
+    info!("acessed address: {:?}", Cr2::read());
+    info!("stack frame: {stack_frame:#?}");
+    idle_mode();
 }
 
 extern "x86-interrupt" fn timer_h(_stack_frame: InterruptStackFrame) {
