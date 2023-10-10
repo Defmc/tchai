@@ -62,7 +62,7 @@ pub fn idle_mode() -> ! {
 
 extern "x86-interrupt" fn breakpoint_h(stack_frame: InterruptStackFrame) {
     warn!("breakpoint exception");
-    info!("stack frame: {stack_frame:#?}");
+    info!("\tstack frame: {stack_frame:#?}");
 }
 
 extern "x86-interrupt" fn double_fault_h(stack_frame: InterruptStackFrame, error_code: u64) -> ! {
@@ -78,9 +78,9 @@ extern "x86-interrupt" fn page_fault_h(
 ) {
     use x86_64::registers::control::Cr2;
     warn!("page fault exception");
-    info!("error code: {error_code:?}");
-    info!("acessed address: {:?}", Cr2::read());
-    info!("stack frame: {stack_frame:#?}");
+    info!("\terror code: {error_code:?}");
+    info!("\tacessed address: {:?}", Cr2::read());
+    info!("\tstack frame: {stack_frame:#?}");
     idle_mode();
 }
 
