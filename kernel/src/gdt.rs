@@ -5,6 +5,8 @@ use x86_64::structures::{
 };
 use x86_64::VirtAddr;
 
+use crate::{info, okay};
+
 pub const DOUBLE_FAULT_IST_INDEX: u16 = 0;
 
 pub struct SegSelectors {
@@ -18,15 +20,21 @@ impl SegSelectors {
     }
 }
 
-pub fn init_gdt() {
+pub fn init() {
+    info!("loading gdt table");
     use x86_64::instructions::segmentation::{Segment, CS};
     use x86_64::instructions::tables::load_tss;
     GDT.0.load();
+    info!("loaded gdt table");
 
     unsafe {
+        info!("\tsetting registers for gdt");
         CS::set_reg(GDT.1.code);
         load_tss(GDT.1.tss);
+        x86_64::instructions::segmentation::SS::set_reg(SegmentSelector::NULL);
+        okay!("\tsetted registers for gdt");
     }
+    okay!("gdt loaded");
 }
 
 lazy_static! {
