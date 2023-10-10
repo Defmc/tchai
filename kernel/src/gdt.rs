@@ -1,39 +1,46 @@
 use lazy_static::lazy_static;
-use x86_64::structures::{
-    gdt::{Descriptor, GlobalDescriptorTable, SegmentSelector},
-    tss::TaskStateSegment,
-};
 use x86_64::VirtAddr;
+use x86_64::{
+    instructions::{self, segmentation::Segment},
+    structures::{
+        gdt::{Descriptor, GlobalDescriptorTable, SegmentSelector},
+        tss::TaskStateSegment,
+    },
+};
 
 use crate::{info, okay};
 
 pub const DOUBLE_FAULT_IST_INDEX: u16 = 0;
 
 pub struct SegSelectors {
-    code: SegmentSelector,
+    kcode: SegmentSelector,
+    kdata: SegmentSelector,
     tss: SegmentSelector,
 }
 
 impl SegSelectors {
-    pub fn new(code: SegmentSelector, tss: SegmentSelector) -> Self {
-        Self { code, tss }
+    pub fn new(kcode: SegmentSelector, kdata: SegmentSelector, tss: SegmentSelector) -> Self {
+        Self { kcode, kdata, tss }
     }
 }
 
 pub fn init() {
     info!("loading gdt table");
-    use x86_64::instructions::segmentation::{Segment, CS};
-    use x86_64::instructions::tables::load_tss;
     GDT.0.load();
     info!("loaded gdt table");
 
+    info!("\tsetting registers for gdt");
     unsafe {
-        info!("\tsetting registers for gdt");
-        CS::set_reg(GDT.1.code);
-        load_tss(GDT.1.tss);
-        x86_64::instructions::segmentation::SS::set_reg(SegmentSelector::NULL);
-        okay!("\tsetted registers for gdt");
+        use instructions::{segmentation, tables};
+        segmentation::CS::set_reg(GDT.1.kcode);
+        segmentation::DS::set_reg(GDT.1.kdata);
+        segmentation::ES::set_reg(GDT.1.kdata);
+        segmentation::FS::set_reg(GDT.1.kdata);
+        segmentation::GS::set_reg(GDT.1.kdata);
+        segmentation::SS::set_reg(GDT.1.kdata);
+        tables::load_tss(GDT.1.tss);
     }
+    okay!("\tsetted registers for gdt");
     okay!("gdt loaded");
 }
 
@@ -52,8 +59,13 @@ lazy_static! {
     };
     static ref GDT: (GlobalDescriptorTable, SegSelectors) = {
         let mut gdt = GlobalDescriptorTable::new();
-        let code_seg = gdt.add_entry(Descriptor::kernel_code_segment());
+        let kcode_seg = gdt.add_entry(Descriptor::kernel_code_segment());
+        let kdata_seg = gdt.add_entry(Descriptor::kernel_data_segment());
+        gdt.add_entry(Descriptor::UserSegment(0));
+        gdt.add_entry(Descriptor::user_code_segment());
+        gdt.add_entry(Descriptor::user_data_segment());
+
         let tss_seg = gdt.add_entry(Descriptor::tss_segment(&TSS));
-        (gdt, SegSelectors::new(code_seg, tss_seg))
+        (gdt, SegSelectors::new(kcode_seg, kdata_seg, tss_seg))
     };
 }
