@@ -22,24 +22,27 @@ impl SegSelectors {
     pub fn new(kcode: SegmentSelector, kdata: SegmentSelector, tss: SegmentSelector) -> Self {
         Self { kcode, kdata, tss }
     }
+
+    pub unsafe fn set_segmentations(&self) {
+        use instructions::{segmentation, tables};
+        segmentation::CS::set_reg(self.kcode);
+        segmentation::DS::set_reg(self.kdata);
+        segmentation::ES::set_reg(self.kdata);
+        segmentation::FS::set_reg(self.kdata);
+        segmentation::GS::set_reg(self.kdata);
+        segmentation::SS::set_reg(self.kdata);
+        tables::load_tss(self.tss);
+    }
 }
 
 pub fn init() {
-    info!("loading gdt table");
+    info!("initializing gdt");
+    info!("\tloading gdt table");
     GDT.0.load();
-    info!("loaded gdt table");
+    okay!("\tloaded gdt table");
 
     info!("\tsetting registers for gdt");
-    unsafe {
-        use instructions::{segmentation, tables};
-        segmentation::CS::set_reg(GDT.1.kcode);
-        segmentation::DS::set_reg(GDT.1.kdata);
-        segmentation::ES::set_reg(GDT.1.kdata);
-        segmentation::FS::set_reg(GDT.1.kdata);
-        segmentation::GS::set_reg(GDT.1.kdata);
-        segmentation::SS::set_reg(GDT.1.kdata);
-        tables::load_tss(GDT.1.tss);
-    }
+    unsafe { GDT.1.set_segmentations() }
     okay!("\tsetted registers for gdt");
     okay!("gdt loaded");
 }
