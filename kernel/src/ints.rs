@@ -47,6 +47,16 @@ pub fn init() {
     okay!("loaded idt");
 }
 
+pub fn wait_int() {
+    x86_64::instructions::hlt();
+}
+
+pub fn idle_mode() -> ! {
+    loop {
+        wait_int();
+    }
+}
+
 extern "x86-interrupt" fn breakpoint_h(stack_frame: InterruptStackFrame) {
     warn!("breakpoint exception");
     info!("stack frame: {stack_frame:#?}");
