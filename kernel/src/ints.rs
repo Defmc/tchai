@@ -1,4 +1,4 @@
-use crate::{erro, gdt, info, okay, warn};
+use crate::{erro, gdt, info, okay, print, warn};
 use pic8259::ChainedPics;
 use spin;
 use x86_64::structures::idt::{InterruptDescriptorTable, InterruptStackFrame};
@@ -15,6 +15,7 @@ pub static mut TIMER_TICKS: u128 = 0;
 #[repr(u8)]
 pub enum IntIndex {
     Timer = PIC_1_OFFSET,
+    Keyboard,
 }
 
 impl From<IntIndex> for usize {
@@ -37,6 +38,7 @@ lazy_static::lazy_static! {
             idt.double_fault.set_handler_fn(double_fault_h).set_stack_index(gdt::DOUBLE_FAULT_IST_INDEX);
         }
         idt[IntIndex::Timer.into()].set_handler_fn(timer_h);
+        idt[IntIndex::Keyboard.into()].set_handler_fn(keyboard_h);
         idt
     };
 }
@@ -72,4 +74,35 @@ extern "x86-interrupt" fn double_fault_h(stack_frame: InterruptStackFrame, error
 extern "x86-interrupt" fn timer_h(_stack_frame: InterruptStackFrame) {
     unsafe { TIMER_TICKS += 1 };
     unsafe { PICS.lock().notify_end_of_interrupt(IntIndex::Timer.into()) }
+}
+
+extern "x86-interrupt" fn keyboard_h(_stack_frame: InterruptStackFrame) {
+    use x86_64::instructions::port::Port;
+
+    use pc_keyboard::{layouts, DecodedKey, HandleControl, Keyboard, ScancodeSet1};
+    use spin::Mutex;
+
+    lazy_static::lazy_static! {
+        static ref KEYBOARD: Mutex<Keyboard<layouts::Us104Key, ScancodeSet1>> = Mutex::new(
+            Keyboard::new(ScancodeSet1::new(), layouts::Us104Key,HandleControl::Ignore)
+        );
+    }
+
+    let mut kb = KEYBOARD.lock();
+    let mut port = Port::new(0x60);
+
+    let scancode: u8 = unsafe { port.read() };
+    if let Ok(Some(key_event)) = kb.add_byte(scancode) {
+        if let Some(key) = kb.process_keyevent(key_event) {
+            match key {
+                DecodedKey::Unicode(ch) => print!("{ch}"),
+                DecodedKey::RawKey(rk) => print!("{rk:?}"),
+            }
+        }
+    }
+
+    unsafe {
+        PICS.lock()
+            .notify_end_of_interrupt(IntIndex::Keyboard.into())
+    }
 }
