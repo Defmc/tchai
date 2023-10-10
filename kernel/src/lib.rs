@@ -113,15 +113,15 @@ macro_rules! println {
 pub fn internal_colored_print(fmt: fmt::Arguments, color: RgbColor) {
     use x86_64::instructions::interrupts;
 
-    // interrupts::without_interrupts(|| {
-    use core::fmt::Write;
-    let mut serial_lock = unsafe { crate::SERIAL_OUT.lock() };
-    let serial = serial_lock.as_mut().unwrap();
-    serial.write_fmt(fmt).unwrap();
+    interrupts::without_interrupts(|| {
+        use core::fmt::Write;
+        let mut serial_lock = unsafe { crate::SERIAL_OUT.lock() };
+        let serial = serial_lock.as_mut().unwrap();
+        serial.write_fmt(fmt).unwrap();
 
-    let mut monitor_lock = unsafe { crate::MONITOR_OUT.lock() };
-    let monitor = monitor_lock.as_mut().unwrap();
-    monitor.color = color;
-    monitor.write_fmt(fmt).unwrap();
-    // })
+        let mut monitor_lock = unsafe { crate::MONITOR_OUT.lock() };
+        let monitor = monitor_lock.as_mut().unwrap();
+        monitor.color = color;
+        monitor.write_fmt(fmt).unwrap();
+    })
 }
