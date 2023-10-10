@@ -5,11 +5,12 @@ use x86_64::structures::idt::{InterruptDescriptorTable, InterruptStackFrame, Pag
 
 pub const PIC_1_OFFSET: u8 = 32;
 pub const PIC_2_OFFSET: u8 = PIC_1_OFFSET + 8;
+pub const KEYBOARD_PORT: u16 = 0x60;
 
 pub static PICS: spin::Mutex<ChainedPics> =
     spin::Mutex::new(unsafe { ChainedPics::new(PIC_1_OFFSET, PIC_2_OFFSET) });
 
-pub static mut TIMER_TICKS: u128 = 0;
+pub static mut TIMER_TICKS: spin::RwLock<u128> = spin::RwLock::new(0);
 
 #[derive(Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
 #[repr(u8)]
@@ -85,7 +86,8 @@ extern "x86-interrupt" fn page_fault_h(
 }
 
 extern "x86-interrupt" fn timer_h(_stack_frame: InterruptStackFrame) {
-    unsafe { TIMER_TICKS += 1 };
+    let mut timer_w = unsafe { TIMER_TICKS.write() };
+    *timer_w += 1;
     unsafe { PICS.lock().notify_end_of_interrupt(IntIndex::Timer.into()) }
 }
 
@@ -102,7 +104,7 @@ extern "x86-interrupt" fn keyboard_h(_stack_frame: InterruptStackFrame) {
     }
 
     let mut kb = KEYBOARD.lock();
-    let mut port = Port::new(0x60);
+    let mut port = Port::new(KEYBOARD_PORT);
 
     let scancode: u8 = unsafe { port.read() };
     if let Ok(Some(key_event)) = kb.add_byte(scancode) {
@@ -118,4 +120,8 @@ extern "x86-interrupt" fn keyboard_h(_stack_frame: InterruptStackFrame) {
         PICS.lock()
             .notify_end_of_interrupt(IntIndex::Keyboard.into())
     }
+}
+
+pub fn get_ticks() -> u128 {
+    unsafe { *TIMER_TICKS.read() }
 }
