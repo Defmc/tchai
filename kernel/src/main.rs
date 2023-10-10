@@ -28,11 +28,6 @@ fn kernel_main(info: &'static mut bootloader_api::BootInfo) -> ! {
     println!("(root) [/]: ");
 
     loop {
-        const TICKS_INTERVAL: u128 = 20;
-        let ticks = unsafe { kernel::ints::TIMER_TICKS };
-        while unsafe { kernel::ints::TIMER_TICKS } - ticks < 20 {}
-        okay!("still running. {} ticks", unsafe {
-            kernel::ints::TIMER_TICKS
-        });
+        kernel::ints::idle_mode();
     }
 }
