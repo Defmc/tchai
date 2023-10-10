@@ -14,3 +14,7 @@ pic8259 = "0.10.4"
 spin = "0.9.8"
 uart_16550 = "0.3.0"
 x86_64 = "0.14.11"
+
+[features]
+default = []
+test_double_fault = []
