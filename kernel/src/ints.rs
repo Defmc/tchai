@@ -1,4 +1,4 @@
-use crate::{erro, gdt, info, warn};
+use crate::{erro, gdt, info, okay, warn};
 use pic8259::ChainedPics;
 use spin;
 use x86_64::structures::idt::{InterruptDescriptorTable, InterruptStackFrame};
@@ -36,13 +36,15 @@ lazy_static::lazy_static! {
         unsafe {
             idt.double_fault.set_handler_fn(double_fault_h).set_stack_index(gdt::DOUBLE_FAULT_IST_INDEX);
         }
-       idt[IntIndex::Timer.into()].set_handler_fn(timer_h);
+        idt[IntIndex::Timer.into()].set_handler_fn(timer_h);
         idt
     };
 }
 
-pub fn init_idt() {
+pub fn init() {
+    info!("loading idt");
     IDT.load();
+    okay!("loaded idt");
 }
 
 extern "x86-interrupt" fn breakpoint_h(stack_frame: InterruptStackFrame) {
@@ -50,14 +52,14 @@ extern "x86-interrupt" fn breakpoint_h(stack_frame: InterruptStackFrame) {
     info!("stack frame: {stack_frame:#?}");
 }
 
-extern "x86-interrupt" fn double_fault_h(stack_frame: InterruptStackFrame, _error_code: u64) -> ! {
-    debug_assert_eq!(_error_code, 0);
+extern "x86-interrupt" fn double_fault_h(stack_frame: InterruptStackFrame, error_code: u64) -> ! {
     erro!("double fault exception");
-    info!("stack frame: {stack_frame:#?}");
+    info!("\terror code: {error_code}");
+    info!("\tstack frame: {stack_frame:#?}");
     panic!("double fault exception");
 }
 
 extern "x86-interrupt" fn timer_h(_stack_frame: InterruptStackFrame) {
-    //    unsafe { TIMER_TICKS += 1 };
+    unsafe { TIMER_TICKS += 1 };
     unsafe { PICS.lock().notify_end_of_interrupt(IntIndex::Timer.into()) }
 }

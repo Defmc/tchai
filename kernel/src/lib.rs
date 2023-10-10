@@ -21,10 +21,14 @@ pub static mut SERIAL_OUT: Mutex<Option<SerialPort>> = Mutex::new(None);
 pub const SERIAL_IO_PORT: u16 = 0x3F8;
 
 pub fn init() {
-    ints::init_idt();
-    gdt::init_gdt();
+    gdt::init();
+    ints::init();
+    info!("initializing pics");
     unsafe { ints::PICS.lock().initialize() };
-    //x86_64::instructions::interrupts::enable();
+    okay!("initialized pics");
+    info!("enabling interrupts");
+    x86_64::instructions::interrupts::enable();
+    okay!("enabled interrupts");
 }
 
 pub fn setup_monitor(fb: &'static mut FrameBuffer) {
@@ -109,7 +113,7 @@ macro_rules! println {
 pub fn internal_colored_print(fmt: fmt::Arguments, color: RgbColor) {
     use x86_64::instructions::interrupts;
 
-    //    interrupts::without_interrupts(|| {
+    // interrupts::without_interrupts(|| {
     use core::fmt::Write;
     let mut serial_lock = unsafe { crate::SERIAL_OUT.lock() };
     let serial = serial_lock.as_mut().unwrap();
@@ -119,5 +123,5 @@ pub fn internal_colored_print(fmt: fmt::Arguments, color: RgbColor) {
     let monitor = monitor_lock.as_mut().unwrap();
     monitor.color = color;
     monitor.write_fmt(fmt).unwrap();
-    //    })
+    // })
 }

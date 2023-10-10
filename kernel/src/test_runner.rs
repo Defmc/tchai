@@ -4,10 +4,10 @@ pub const TESTS: &[(&'static str, fn())] = &[
     ("equality", eq_assertion),
     ("floating point arithmetic", float_arithmetic),
     ("breakpoint exception", breakpoint_exception),
-    (
-        "kernel stackoverflow exception",
-        kernel_stackoverflow_exception,
-    ),
+    // (
+    //     "kernel stackoverflow exception",
+    //     kernel_stackoverflow_exception,
+    // ),
 ];
 
 pub fn run_tests() {

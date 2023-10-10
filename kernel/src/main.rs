@@ -4,11 +4,11 @@
 use core::panic::PanicInfo;
 
 use kernel::monitor::RgbColor;
-use kernel::{print, println};
+use kernel::{okay, print, println};
 
 #[panic_handler]
-fn panic_handler(info: &PanicInfo) -> ! {
-    kernel::log!(kernel::ERRO_COLOR, "CRITICAL ERRO", "{info:#?}");
+fn panic_handler(_info: &PanicInfo) -> ! {
+    kernel::log!(kernel::ERRO_COLOR, "CRITICAL ERRO", "panicked");
     loop {}
 }
 
@@ -22,15 +22,23 @@ fn kernel_main(info: &'static mut bootloader_api::BootInfo) -> ! {
     #[cfg(debug_assertions)]
     kernel::test_runner::run_tests();
 
-    // page fault
-    // unsafe {
-    //     *(0xdeadbeef as *mut u8) = 42;
-    // };
-
     print!("yaay, welcome to ");
     println!(RgbColor::new(0, 255, 0) => "tchaiOS");
 
     println!("(root) [/]: ");
 
-    loop {}
+    loop {
+        for _ in 0..100_000_00 {
+            let x = 0;
+            unsafe {
+                assert_eq!(
+                    core::ptr::read_volatile(&x as *const i32),
+                    core::ptr::read_volatile(&x as *const i32)
+                )
+            }
+        }
+        okay!("still running. {} ticks", unsafe {
+            kernel::ints::TIMER_TICKS
+        });
+    }
 }
