@@ -9,7 +9,7 @@ use kernel::{okay, print, println};
 #[panic_handler]
 fn panic_handler(_info: &PanicInfo) -> ! {
     kernel::log!(kernel::ERRO_COLOR, "CRITICAL ERRO", "panicked");
-    loop {}
+    kernel::ints::idle_mode();
 }
 
 bootloader_api::entry_point!(kernel_main);
@@ -28,15 +28,9 @@ fn kernel_main(info: &'static mut bootloader_api::BootInfo) -> ! {
     println!("(root) [/]: ");
 
     loop {
-        for _ in 0..100_000_00 {
-            let x = 0;
-            unsafe {
-                assert_eq!(
-                    core::ptr::read_volatile(&x as *const i32),
-                    core::ptr::read_volatile(&x as *const i32)
-                )
-            }
-        }
+        const TICKS_INTERVAL: u128 = 20;
+        let ticks = unsafe { kernel::ints::TIMER_TICKS };
+        while unsafe { kernel::ints::TIMER_TICKS } - ticks < 20 {}
         okay!("still running. {} ticks", unsafe {
             kernel::ints::TIMER_TICKS
         });
