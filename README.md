@@ -1,5 +1,5 @@
 ## My OS
-You definately (still) shouldn't run it.
+You definately shouldn't run it ~~yet~~.
 
 ### Tf this name?
 I was listening to Tchaikovsky and don't have creative.
