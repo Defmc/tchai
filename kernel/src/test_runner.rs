@@ -1,4 +1,4 @@
-use crate::{info, okay, println};
+use crate::{info, okay};
 
 pub const TESTS: &[(&'static str, fn())] = &[
     ("equality", eq_assertion),
@@ -8,6 +8,8 @@ pub const TESTS: &[(&'static str, fn())] = &[
         "kernel stackoverflow exception",
         kernel_stackoverflow_exception,
     ),
+    // ("page fault exception", page_fault_exception),
+    // ("memory access privileges", memory_access_privileges),
 ];
 
 pub fn run_tests() {
@@ -51,4 +53,18 @@ pub fn kernel_stackoverflow_exception() {
         x86_64::instructions::nop()
     }
     overflow()
+}
+
+pub fn page_fault_exception() {
+    unsafe {
+        let x = core::ptr::read_volatile(0xdeadbeef as *const u8);
+        assert_eq!(x, core::ptr::read_volatile(0xdeadbeef as *const u8))
+    }
+}
+
+pub fn memory_access_privileges() {
+    unsafe {
+        let x = core::ptr::read_volatile(0x0 as *const u8);
+        assert_eq!(x, core::ptr::read_volatile(0x0 as *const u8))
+    }
 }
