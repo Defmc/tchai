@@ -4,31 +4,46 @@
 
 use core::fmt;
 
-use bootloader_api::info::FrameBuffer;
+use bootloader_api::{info::FrameBuffer, BootInfo};
 use monitor::{FrameBufferWriter, RgbColor};
 
 pub mod gdt;
 pub mod ints;
+pub mod mem;
 pub mod monitor;
+pub mod page;
 #[cfg(debug_assertions)]
 pub mod test_runner;
 
 use spin::mutex::Mutex;
 use uart_16550::SerialPort;
+use x86_64::VirtAddr;
 pub static mut MONITOR_OUT: Mutex<Option<FrameBufferWriter>> = Mutex::new(None);
 pub static mut SERIAL_OUT: Mutex<Option<SerialPort>> = Mutex::new(None);
 
 pub const SERIAL_IO_PORT: u16 = 0x3F8;
 
-pub fn init() {
+pub fn init(info: &'static mut BootInfo) {
+    setup_monitor(info.framebuffer.as_mut().unwrap());
+    okay!("monitor started");
+
     gdt::init();
     ints::init();
+
     info!("initializing pics");
     unsafe { ints::PICS.lock().initialize() };
     okay!("initialized pics");
+
     info!("enabling interrupts");
     x86_64::instructions::interrupts::enable();
     okay!("enabled interrupts");
+
+    info!("activing level 4 paging tables");
+    unsafe {
+        let addr = VirtAddr::new(*info.physical_memory_offset.as_ref().unwrap());
+        mem::active_level_4_table(addr);
+    }
+    okay!("actived level 4 paging tables");
 }
 
 pub fn setup_monitor(fb: &'static mut FrameBuffer) {

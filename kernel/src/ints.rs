@@ -63,13 +63,13 @@ pub fn idle_mode() -> ! {
 
 extern "x86-interrupt" fn breakpoint_h(stack_frame: InterruptStackFrame) {
     warn!("breakpoint exception");
-    info!("\tstack frame: {stack_frame:#?}");
+    info!("\tstack frame: {stack_frame:?}");
 }
 
 extern "x86-interrupt" fn double_fault_h(stack_frame: InterruptStackFrame, error_code: u64) -> ! {
     erro!("double fault exception");
     info!("\terror code: {error_code}");
-    info!("\tstack frame: {stack_frame:#?}");
+    info!("\tstack frame: {stack_frame:?}");
     panic!("double fault exception");
 }
 
@@ -81,8 +81,8 @@ extern "x86-interrupt" fn page_fault_h(
     warn!("page fault exception");
     info!("\terror code: {error_code:?}");
     info!("\tacessed address: {:?}", Cr2::read());
-    info!("\tstack frame: {stack_frame:#?}");
-    idle_mode();
+    info!("\tstack frame: {stack_frame:?}");
+    idle_mode(); // TODO: Recover from
 }
 
 extern "x86-interrupt" fn timer_h(_stack_frame: InterruptStackFrame) {
