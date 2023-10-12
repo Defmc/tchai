@@ -1,3 +1,7 @@
+use core::ptr::null_mut;
+
+use alloc::{boxed::Box, vec::Vec};
+
 use crate::{info, okay};
 
 pub const TESTS: &[(&'static str, fn())] = &[
@@ -10,6 +14,8 @@ pub const TESTS: &[(&'static str, fn())] = &[
     ),
     // ("page fault exception", page_fault_exception),
     // ("memory access privileges", memory_access_privileges),
+    ("memory allocation box", memory_allocation_box),
+    ("memory allocation vec", memory_allocation_vectors),
 ];
 
 pub fn run_tests() {
@@ -67,4 +73,14 @@ pub fn memory_access_privileges() {
         let x = core::ptr::read_volatile(0x0 as *const u8);
         assert_eq!(x, core::ptr::read_volatile(0x0 as *const u8))
     }
+}
+
+pub fn memory_allocation_box() {
+    let x = Box::new(0);
+    assert_ne!(Box::into_raw(x), null_mut() as *mut i32);
+}
+
+pub fn memory_allocation_vectors() {
+    let v: Vec<u8> = (0..100).collect();
+    assert_eq!(v.len(), 100);
 }

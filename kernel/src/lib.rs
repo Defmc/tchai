@@ -2,24 +2,33 @@
 #![no_main]
 #![feature(abi_x86_interrupt)]
 
+extern crate alloc;
+
 use core::fmt;
 
 use bootloader_api::{info::FrameBuffer, BootInfo};
+use mem::BootInfoFrameAllocator;
 use monitor::{FrameBufferWriter, RgbColor};
 
+pub mod allocator;
 pub mod gdt;
 pub mod ints;
 pub mod mem;
 pub mod monitor;
-pub mod page;
 #[cfg(debug_assertions)]
 pub mod test_runner;
 
 use spin::mutex::Mutex;
 use uart_16550::SerialPort;
-use x86_64::VirtAddr;
+use x86_64::{
+    structures::paging::{OffsetPageTable, Size4KiB},
+    VirtAddr,
+};
 pub static mut MONITOR_OUT: Mutex<Option<FrameBufferWriter>> = Mutex::new(None);
 pub static mut SERIAL_OUT: Mutex<Option<SerialPort>> = Mutex::new(None);
+
+pub static mut PAGE_MAPPER: Option<OffsetPageTable> = None;
+pub static mut FRAME_ALLOCATOR: Option<BootInfoFrameAllocator> = None;
 
 pub const SERIAL_IO_PORT: u16 = 0x3F8;
 
@@ -41,9 +50,23 @@ pub fn init(info: &'static mut BootInfo) {
     info!("activing level 4 paging tables");
     unsafe {
         let addr = VirtAddr::new(*info.physical_memory_offset.as_ref().unwrap());
-        mem::active_level_4_table(addr);
+        PAGE_MAPPER = Some(mem::init(addr));
     }
     okay!("actived level 4 paging tables");
+
+    info!("creating frame buffer allocator");
+    unsafe { FRAME_ALLOCATOR = Some(mem::BootInfoFrameAllocator::new(&info.memory_regions)) };
+    okay!("created frame buffer allocator");
+
+    info!("paging heap");
+    unsafe {
+        allocator::init_heap(
+            PAGE_MAPPER.as_mut().unwrap(),
+            FRAME_ALLOCATOR.as_mut().unwrap(),
+        )
+        .unwrap();
+    }
+    okay!("paged heap");
 }
 
 pub fn setup_monitor(fb: &'static mut FrameBuffer) {

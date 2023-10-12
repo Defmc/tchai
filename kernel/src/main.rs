@@ -8,6 +8,8 @@ use bootloader_api::BootloaderConfig;
 use kernel::monitor::RgbColor;
 use kernel::{okay, print, println};
 
+extern crate alloc;
+
 #[panic_handler]
 fn panic_handler(_info: &PanicInfo) -> ! {
     #[cfg(not(feature = "test_double_fault"))]

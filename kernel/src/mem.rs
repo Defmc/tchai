@@ -1,6 +1,8 @@
-use x86_64::{structures::paging::PageTable, PhysAddr, VirtAddr};
-
-use crate::{erro, info};
+use bootloader_api::info::{MemoryRegionKind, MemoryRegions};
+use x86_64::{
+    structures::paging::{FrameAllocator, OffsetPageTable, PageTable, PhysFrame, Size4KiB},
+    PhysAddr, VirtAddr,
+};
 
 pub unsafe fn active_level_4_table(phys_mem_offset: VirtAddr) -> &'static mut PageTable {
     use x86_64::registers::control::Cr3;
@@ -12,41 +14,39 @@ pub unsafe fn active_level_4_table(phys_mem_offset: VirtAddr) -> &'static mut Pa
     &mut *page_table_ptr
 }
 
-pub unsafe fn virt_to_phys(addr: VirtAddr, phys_mem_offset: VirtAddr) -> Option<PhysAddr> {
-    use x86_64::registers::control::Cr3;
-    use x86_64::structures::paging::page_table::FrameError;
+pub const PAGE_SIZE: usize = 1024 * 4;
 
-    let (mut l4_frame, _) = Cr3::read();
-    let table_idxs = [
-        addr.p4_index(),
-        addr.p3_index(),
-        addr.p2_index(),
-        addr.p1_index(),
-    ];
+pub unsafe fn init(phys_mem_offset: VirtAddr) -> OffsetPageTable<'static> {
+    let l4_table = active_level_4_table(phys_mem_offset);
+    OffsetPageTable::new(l4_table, phys_mem_offset)
+}
 
-    for &index in &table_idxs {
-        let virt = phys_mem_offset + l4_frame.start_address().as_u64();
-        let table_ptr: *const PageTable = virt.as_ptr();
-        let table = unsafe { &*table_ptr };
+pub struct BootInfoFrameAllocator {
+    memory_map: &'static MemoryRegions,
+    next: usize,
+}
 
-        let entry = &table[index];
-        l4_frame = match entry.frame() {
-            Ok(frame) => frame,
-            Err(FrameError::FrameNotPresent) => {
-                erro!("frame error (not present)");
-                info!("l4 frame: {l4_frame:?}");
-                info!("indexes: {table_idxs:?}");
-                info!("offset: {phys_mem_offset:?}");
-                return None;
-            }
-            Err(FrameError::HugeFrame) => {
-                erro!("frame error (huge frame)");
-                info!("l4 frame: {l4_frame:?}");
-                info!("indexes: {table_idxs:?}");
-                info!("offset: {phys_mem_offset:?}");
-                panic!("frame error");
-            }
+impl BootInfoFrameAllocator {
+    pub unsafe fn new(memory_map: &'static MemoryRegions) -> Self {
+        Self {
+            memory_map,
+            next: 0,
         }
     }
-    let addr = l4_frame.start_address() + u64::from(addr.page_offset());
+
+    fn usable_frames(memory_map: &'static MemoryRegions) -> impl Iterator<Item = PhysFrame> {
+        let regions = memory_map.iter();
+        let usable_regions = regions.filter(|r| r.kind == MemoryRegionKind::Usable);
+        let addr_ranges = usable_regions.map(|r| r.start..r.end);
+        let frame_addrs = addr_ranges.flat_map(|r| r.step_by(PAGE_SIZE));
+        frame_addrs.map(|addr| PhysFrame::containing_address(PhysAddr::new(addr)))
+    }
+}
+
+unsafe impl FrameAllocator<Size4KiB> for BootInfoFrameAllocator {
+    fn allocate_frame(&mut self) -> Option<PhysFrame> {
+        let frame = Self::usable_frames(self.memory_map).nth(self.next);
+        self.next += 1;
+        frame
+    }
 }
