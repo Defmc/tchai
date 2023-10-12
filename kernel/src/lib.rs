@@ -20,10 +20,7 @@ pub mod test_runner;
 
 use spin::mutex::Mutex;
 use uart_16550::SerialPort;
-use x86_64::{
-    structures::paging::{OffsetPageTable, Size4KiB},
-    VirtAddr,
-};
+use x86_64::{structures::paging::OffsetPageTable, VirtAddr};
 pub static mut MONITOR_OUT: Mutex<Option<FrameBufferWriter>> = Mutex::new(None);
 pub static mut SERIAL_OUT: Mutex<Option<SerialPort>> = Mutex::new(None);
 
