@@ -12,8 +12,6 @@ pub const TESTS: &[(&'static str, fn())] = &[
         "kernel stackoverflow exception",
         kernel_stackoverflow_exception,
     ),
-    // ("page fault exception", page_fault_exception),
-    // ("memory access privileges", memory_access_privileges),
     ("memory allocation box", memory_allocation_box),
     ("memory allocation vec", memory_allocation_vectors),
 ];
@@ -26,7 +24,7 @@ pub fn executor(tests: &[(&'static str, fn())]) {
     info!("running {} tests", tests.len());
     for (name, test) in tests.iter() {
         info!("\trunning test '{name}'");
-        test();
+        catch_unwindtest();
         okay!("\ttest suceeded");
     }
 }
