@@ -6,7 +6,7 @@ edition = "2021"
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
-bootloader_api = "0.11.4"
+bootloader_api = "0.11.7"
 lazy_static = { version = "1.4.0", features = ["spin_no_std"] }
 linked_list_allocator = "0.10.5"
 noto-sans-mono-bitmap = { version = "0.2.0"}
@@ -14,7 +14,7 @@ pc-keyboard = "0.7.0"
 pic8259 = "0.10.4"
 spin = "0.9.8"
 uart_16550 = "0.3.0"
-x86_64 = "0.14.11"
+x86_64 = "0.14.12"
 
 [features]
 default = []
